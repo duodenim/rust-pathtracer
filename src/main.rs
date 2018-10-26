@@ -11,15 +11,23 @@ use vec3::Vec3;
 mod ray;
 use ray::Ray;
 
+mod sphere;
+use sphere::Sphere;
+
 fn color(r : &Ray) -> Vec3 {
+    let sphere = Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5);
+    let hit = sphere.hit(0.0, 50.0, r);
+    if hit.hit {
+        return 0.5 * Vec3::new(hit.normal.x() + 1.0, hit.normal.y() + 1.0, hit.normal.z() + 1.0);
+    }
     let unit_direction = Vec3::unit_vector(r.direction());
     let t = 0.5 * (unit_direction.y() + 1.0);
     (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
 }
 
 fn main() {
-    let image_width = 200;
-    let image_height = 100;
+    let image_width = 400;
+    let image_height = 200;
 
     let x = Vec3::zero_vector();
     let y = Vec3::new(1.0, 2.0, 3.0);

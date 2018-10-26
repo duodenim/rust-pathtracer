@@ -5,9 +5,40 @@ use std::io::BufWriter;
 extern crate png;
 use png::HasParameters;
 
+mod vec3;
+use vec3::Vec3;
+
 fn main() {
     let image_width = 200;
     let image_height = 100;
+
+    let x = Vec3::zero_vector();
+    let y = Vec3::new(1.0, 2.0, 3.0);
+    let z = x + y;
+    let mut w = x - y;
+
+    println!("squared length is {}", z.squared_length());
+    println!("length is {}", z.length());
+
+    println!("squared length is {}", w.squared_length());
+    println!("length is {}", w.length());
+
+    w.normalize();
+
+    println!("squared length is {}", w.squared_length());
+    println!("length is {}", w.length());
+
+    let unit_x = Vec3::new(1.0, 0.0, 0.0);
+    let unit_y = Vec3::new(0.0, 1.0, 0.0);
+    let unit_z = Vec3::new(0.0, 0.0, 1.0);
+
+    let x_cross_y = unit_x.cross(unit_y);
+    let x_cross_z = unit_x.cross(unit_z);
+    let y_cross_z = unit_y.cross(unit_z);
+
+    println!("X cross Y is {:?}", x_cross_y);
+    println!("X cross Z is {:?}", x_cross_z);
+    println!("Y cross Z is {:?}", y_cross_z);
 
     //Generate image
     let mut data = Vec::new();
@@ -27,6 +58,8 @@ fn main() {
             data.push(255);
         }
     }
+
+    //Store image to file
     let path = Path::new(r"image.png");
     let file = File::create(path).unwrap();
     let ref mut w = BufWriter::new(file);

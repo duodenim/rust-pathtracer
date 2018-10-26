@@ -8,6 +8,15 @@ use png::HasParameters;
 mod vec3;
 use vec3::Vec3;
 
+mod ray;
+use ray::Ray;
+
+fn color(r : &Ray) -> Vec3 {
+    let unit_direction = Vec3::unit_vector(r.direction());
+    let t = 0.5 * (unit_direction.y() + 1.0);
+    (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+}
+
 fn main() {
     let image_width = 200;
     let image_height = 100;
@@ -42,15 +51,23 @@ fn main() {
 
     //Generate image
     let mut data = Vec::new();
+
+    let lower_left_corner = Vec3::new(-2.0, -1.0, -1.0);
+    let horizontal = Vec3::new(4.0, 0.0, 0.0);
+    let vertical = Vec3::new(0.0, 2.0, 0.0);
+    let origin = Vec3::zero_vector();
+
     for y in (0..image_height).rev() {
         for x in 0..image_width {
-            let r = x as f32 / image_width as f32;
-            let g = y as f32 / image_height as f32;
-            let b = 0.2;
+            let u = x as f32 / image_width as f32;
+            let v = y as f32 / image_height as f32;
 
-            let ir = (255.99*r) as u8;
-            let ig = (255.99*g) as u8;
-            let ib = (255.99*b) as u8;
+            let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
+
+            let color = color(&r);
+            let ir = (255.99*color.x()) as u8;
+            let ig = (255.99*color.y()) as u8;
+            let ib = (255.99*color.z()) as u8;
 
             data.push(ir);
             data.push(ig);

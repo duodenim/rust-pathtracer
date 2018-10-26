@@ -22,6 +22,15 @@ impl Vec3 {
             z
         }
     }
+    pub fn x(&self) -> f32 {
+        self.x
+    }
+    pub fn y(&self) -> f32 {
+        self.y
+    }
+    pub fn z(&self) -> f32 {
+        self.z
+    }
     pub fn squared_length(&self) -> f32 {
         self.x*self.x + self.y*self.y + self.z*self.z
     }
@@ -33,6 +42,11 @@ impl Vec3 {
         self.x /= length;
         self.y /= length;
         self.z /= length;
+    }
+    pub fn unit_vector(v: Vec3) -> Vec3 {
+        let mut nv = v;
+        nv.normalize();
+        nv
     }
     pub fn dot(&self, v2 : Vec3) -> f32 {
         self.x * v2.x + self.y * v2.y + self.z * v2.z

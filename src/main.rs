@@ -30,7 +30,7 @@ fn color(r : &Ray, world: &[Sphere]) -> Vec3 {
     let mut closest_so_far = 50.0;
     let mut hit_rec = Hit::no_hit();
     for sphere in world {
-        let hit = sphere.hit(0.0, closest_so_far, r);
+        let hit = sphere.hit(0.001, closest_so_far, r);
         if hit.hit {
             closest_so_far = hit.t;
             hit_rec = hit;
@@ -48,6 +48,7 @@ fn color(r : &Ray, world: &[Sphere]) -> Vec3 {
 fn main() {
     let image_width = 400;
     let image_height = 200;
+    let samples_per_pixel = 100;
 
     let x = Vec3::zero_vector();
     let y = Vec3::new(1.0, 2.0, 3.0);
@@ -92,15 +93,25 @@ fn main() {
 
     for y in (0..image_height).rev() {
         for x in 0..image_width {
-            let u = x as f32 / image_width as f32;
-            let v = y as f32 / image_height as f32;
+            let mut avg_color = Vec3::zero_vector();
 
-            let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
+            for _ in 0..samples_per_pixel {
+                let u = (x as f32 + rand::random::<f32>()) / image_width as f32;
+                let v = (y as f32 + rand::random::<f32>()) / image_height as f32;
 
-            let color = color(&r, &world);
-            let ir = (255.99*color.x()) as u8;
-            let ig = (255.99*color.y()) as u8;
-            let ib = (255.99*color.z()) as u8;
+                let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
+
+                let col = color(&r, &world);
+
+                avg_color = avg_color + (col / samples_per_pixel as f32);
+            }
+
+            //Do gamma correction
+            avg_color = Vec3::new(avg_color.x().sqrt(), avg_color.y().sqrt(), avg_color.z().sqrt());
+
+            let ir = (255.99*avg_color.x()) as u8;
+            let ig = (255.99*avg_color.y()) as u8;
+            let ib = (255.99*avg_color.z()) as u8;
 
             data.push(ir);
             data.push(ig);

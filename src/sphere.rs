@@ -13,6 +13,17 @@ pub struct Sphere {
     radius: f32
 }
 
+impl Hit {
+    pub fn no_hit() -> Hit {
+        Hit {
+            hit: false,
+            t: 0.0,
+            p: Vec3::new(0.0, 0.0, 0.0),
+            normal: Vec3::new(0.0, 0.0, 0.0)
+        }
+    }
+}
+
 impl Sphere {
     pub fn new(center: Vec3, radius: f32) -> Sphere {
         Sphere {

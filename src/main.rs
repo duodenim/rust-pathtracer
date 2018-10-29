@@ -5,6 +5,8 @@ use std::io::BufWriter;
 extern crate png;
 use png::HasParameters;
 
+extern crate rand;
+
 mod vec3;
 use vec3::Vec3;
 
@@ -13,12 +15,30 @@ use ray::Ray;
 
 mod sphere;
 use sphere::Sphere;
+use sphere::Hit;
 
-fn color(r : &Ray) -> Vec3 {
-    let sphere = Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5);
-    let hit = sphere.hit(0.0, 50.0, r);
-    if hit.hit {
-        return 0.5 * Vec3::new(hit.normal.x() + 1.0, hit.normal.y() + 1.0, hit.normal.z() + 1.0);
+fn random_in_unit_sphere() -> Vec3 {
+    loop {
+        let p = 2.0 * Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()) - Vec3::new(1.0, 1.0, 1.0);
+        if p.squared_length() < 1.0 {
+            return p;
+        }
+    }
+}
+
+fn color(r : &Ray, world: &[Sphere]) -> Vec3 {
+    let mut closest_so_far = 50.0;
+    let mut hit_rec = Hit::no_hit();
+    for sphere in world {
+        let hit = sphere.hit(0.0, closest_so_far, r);
+        if hit.hit {
+            closest_so_far = hit.t;
+            hit_rec = hit;
+        }
+    }
+    if hit_rec.hit {
+        let target = hit_rec.p + hit_rec.normal + random_in_unit_sphere();
+        return 0.5 * color(&Ray::new(hit_rec.p, target - hit_rec.p), world);
     }
     let unit_direction = Vec3::unit_vector(r.direction());
     let t = 0.5 * (unit_direction.y() + 1.0);
@@ -57,6 +77,11 @@ fn main() {
     println!("X cross Z is {:?}", x_cross_z);
     println!("Y cross Z is {:?}", y_cross_z);
 
+    //Generate world
+    let mut world = Vec::new();
+    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5));
+    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0));
+
     //Generate image
     let mut data = Vec::new();
 
@@ -72,7 +97,7 @@ fn main() {
 
             let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
 
-            let color = color(&r);
+            let color = color(&r, &world);
             let ir = (255.99*color.x()) as u8;
             let ig = (255.99*color.y()) as u8;
             let ib = (255.99*color.z()) as u8;

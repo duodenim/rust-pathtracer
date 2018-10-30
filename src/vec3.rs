@@ -104,6 +104,18 @@ impl ops::Mul<Vec3> for f32 {
     }
 }
 
+impl ops::Mul<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, _rhs: Vec3) -> Vec3 {
+        Vec3 {
+            x: self.x * _rhs.x,
+            y: self.y * _rhs.y,
+            z: self.z * _rhs.z
+        }
+    }
+}
+
 impl ops::Div<f32> for Vec3 {
     type Output = Vec3;
 

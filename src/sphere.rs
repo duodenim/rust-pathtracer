@@ -1,16 +1,19 @@
 use vec3::Vec3;
 use ray::Ray;
+use material::Lambertian;
 
 pub struct Hit {
     pub hit: bool,
     pub t: f32,
     pub p: Vec3,
-    pub normal: Vec3
+    pub normal: Vec3,
+    pub material: Option<Lambertian>
 }
 
 pub struct Sphere {
     center: Vec3,
-    radius: f32
+    radius: f32,
+    material: Lambertian
 }
 
 impl Hit {
@@ -19,16 +22,18 @@ impl Hit {
             hit: false,
             t: 0.0,
             p: Vec3::new(0.0, 0.0, 0.0),
-            normal: Vec3::new(0.0, 0.0, 0.0)
+            normal: Vec3::new(0.0, 0.0, 0.0),
+            material: None
         }
     }
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32) -> Sphere {
+    pub fn new(center: Vec3, radius: f32, material: Lambertian) -> Sphere {
         Sphere {
             center,
-            radius
+            radius,
+            material
         }
     }
     pub fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit {
@@ -44,7 +49,8 @@ impl Sphere {
                     hit: true,
                     t: temp,
                     p: r.point_at_parameter(temp),
-                    normal: (r.point_at_parameter(temp) - self.center) / self.radius
+                    normal: (r.point_at_parameter(temp) - self.center) / self.radius,
+                    material: Some(self.material)
                 }
             }
             let temp = (-b + discriminant.sqrt()) / a;
@@ -53,7 +59,8 @@ impl Sphere {
                     hit: true,
                     t: temp,
                     p: r.point_at_parameter(temp),
-                    normal: (r.point_at_parameter(temp) - self.center) / self.radius
+                    normal: (r.point_at_parameter(temp) - self.center) / self.radius,
+                    material: Some(self.material)
                 }
             }
         }
@@ -61,7 +68,8 @@ impl Sphere {
             hit: false,
             t: 0.0,
             p: Vec3::new(0.0, 0.0, 0.0),
-            normal: Vec3::new(0.0, 0.0, 0.0)
+            normal: Vec3::new(0.0, 0.0, 0.0),
+            material: None
         }
     }
 }

@@ -17,16 +17,11 @@ mod sphere;
 use sphere::Sphere;
 use sphere::Hit;
 
-fn random_in_unit_sphere() -> Vec3 {
-    loop {
-        let p = 2.0 * Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()) - Vec3::new(1.0, 1.0, 1.0);
-        if p.squared_length() < 1.0 {
-            return p;
-        }
-    }
-}
+mod material;
+use material::Material;
+use material::Lambertian;
 
-fn color(r : &Ray, world: &[Sphere]) -> Vec3 {
+fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
     let mut closest_so_far = 50.0;
     let mut hit_rec = Hit::no_hit();
     for sphere in world {
@@ -37,8 +32,13 @@ fn color(r : &Ray, world: &[Sphere]) -> Vec3 {
         }
     }
     if hit_rec.hit {
-        let target = hit_rec.p + hit_rec.normal + random_in_unit_sphere();
-        return 0.5 * color(&Ray::new(hit_rec.p, target - hit_rec.p), world);
+        let material = hit_rec.material.unwrap();
+        let scatter_rec = material.scatter(r, &hit_rec);
+        if scatter_rec.should_scatter && depth < 50 {
+            return scatter_rec.attenuation * color(&scatter_rec.scattered, world, depth + 1);
+        } else {
+            return Vec3::new(0.0, 0.0, 0.0);
+        }
     }
     let unit_direction = Vec3::unit_vector(r.direction());
     let t = 0.5 * (unit_direction.y() + 1.0);
@@ -80,8 +80,8 @@ fn main() {
 
     //Generate world
     let mut world = Vec::new();
-    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5));
-    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0));
+    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5, Lambertian::new(Vec3::new(0.8, 0.3, 0.3))));
+    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0, Lambertian::new(Vec3::new(0.8, 0.8, 0.0))));
 
     //Generate image
     let mut data = Vec::new();
@@ -101,7 +101,7 @@ fn main() {
 
                 let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
 
-                let col = color(&r, &world);
+                let col = color(&r, &world, 0);
 
                 avg_color = avg_color + (col / samples_per_pixel as f32);
             }

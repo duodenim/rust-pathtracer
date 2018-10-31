@@ -22,6 +22,9 @@ mod material;
 use material::Lambertian;
 use material::Metal;
 
+mod camera;
+use camera::Camera;
+
 fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
     let mut closest_so_far = 50.0;
     let mut hit_rec = Hit::no_hit();
@@ -71,13 +74,11 @@ fn main() {
     world.push(Sphere::new(Vec3::new(1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0))));
     world.push(Sphere::new(Vec3::new(-1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.8, 0.8), 0.3))));
 
+    //Setup camera
+    let camera = Camera::new(Vec3::new(-2.0, 2.0, 1.0), Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 1.0, 0.0), 90.0, image_width as f32 / image_height as f32);
+
     //Generate image
     let mut data = Vec::new();
-
-    let lower_left_corner = Vec3::new(-2.0, -1.0, -1.0);
-    let horizontal = Vec3::new(4.0, 0.0, 0.0);
-    let vertical = Vec3::new(0.0, 2.0, 0.0);
-    let origin = Vec3::zero_vector();
 
     for y in (0..image_height).rev() {
         for x in 0..image_width {
@@ -87,8 +88,10 @@ fn main() {
                 let u = (x as f32 + rand::random::<f32>()) / image_width as f32;
                 let v = (y as f32 + rand::random::<f32>()) / image_height as f32;
 
-                let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
+                //let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
 
+                let r = camera.get_ray(u, v);
+                //println!("Ray is: {:?}", r);
                 let col = color(&r, &world, 0);
 
                 avg_color = avg_color + (col / samples_per_pixel as f32);

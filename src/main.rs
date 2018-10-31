@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
+use std::env;
 
 extern crate png;
 use png::HasParameters;
@@ -53,33 +54,15 @@ fn main() {
     let image_height = 270;
     let samples_per_pixel = 100;
 
-    let x = Vec3::zero_vector();
-    let y = Vec3::new(1.0, 2.0, 3.0);
-    let z = x + y;
-    let mut w = x - y;
+    let args: Vec<String> = env::args().collect();
 
-    println!("squared length is {}", z.squared_length());
-    println!("length is {}", z.length());
-
-    println!("squared length is {}", w.squared_length());
-    println!("length is {}", w.length());
-
-    w.normalize();
-
-    println!("squared length is {}", w.squared_length());
-    println!("length is {}", w.length());
-
-    let unit_x = Vec3::new(1.0, 0.0, 0.0);
-    let unit_y = Vec3::new(0.0, 1.0, 0.0);
-    let unit_z = Vec3::new(0.0, 0.0, 1.0);
-
-    let x_cross_y = unit_x.cross(unit_y);
-    let x_cross_z = unit_x.cross(unit_z);
-    let y_cross_z = unit_y.cross(unit_z);
-
-    println!("X cross Y is {:?}", x_cross_y);
-    println!("X cross Z is {:?}", x_cross_z);
-    println!("Y cross Z is {:?}", y_cross_z);
+    let mut filename = "image.png";
+    if args.len() < 2 {
+        println!("Saving to image.png....");
+    } else {
+        filename = &args[1];
+        println!("Saving to {}....", filename);
+    }
 
     //Generate world
     let mut world = Vec::new();
@@ -126,7 +109,7 @@ fn main() {
     }
 
     //Store image to file
-    let path = Path::new(r"image.png");
+    let path = Path::new(filename);
     let file = File::create(path).unwrap();
     let ref mut w = BufWriter::new(file);
 
@@ -136,4 +119,6 @@ fn main() {
 
 
     writer.write_image_data(&data).unwrap();
+
+    println!("Done");
 }

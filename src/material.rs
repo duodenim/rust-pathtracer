@@ -1,6 +1,5 @@
 use ray::Ray;
 use vec3::Vec3;
-use sphere::Hit;
 
 extern crate rand;
 
@@ -9,8 +8,9 @@ pub struct ScatterRecord {
     pub attenuation: Vec3,
     pub scattered: Ray
 }
+
 pub trait Material {
-    fn scatter(&self, r: &Ray, hit_record: &Hit) -> ScatterRecord;
+    fn scatter(&self, r: &Ray, t: f32, point: Vec3, normal: Vec3) -> ScatterRecord;
 }
 
 #[derive(Copy, Clone)]
@@ -18,10 +18,25 @@ pub struct Lambertian {
     albedo: Vec3
 }
 
+#[derive(Copy, Clone)]
+pub struct Metal {
+    albedo: Vec3,
+    fuzz: f32
+}
+
 impl Lambertian {
     pub fn new(albedo: Vec3) -> Lambertian {
         Lambertian {
             albedo
+        }
+    }
+}
+
+impl Metal {
+    pub fn new(albedo: Vec3, fuzz: f32) -> Metal {
+        Metal {
+            albedo,
+            fuzz
         }
     }
 }
@@ -35,13 +50,38 @@ fn random_in_unit_sphere() -> Vec3 {
     }
 }
 
+fn reflect(v: Vec3, n: Vec3) -> Vec3 {
+    v - (2.0 * v.dot(n) * n)
+}
+
 impl Material for Lambertian {
-    fn scatter(&self, r: &Ray, hit_record: &Hit) -> ScatterRecord {
-        let target = hit_record.p + hit_record.normal + random_in_unit_sphere();
+    fn scatter(&self, _r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> ScatterRecord {
+        let target = point + normal + random_in_unit_sphere();
         ScatterRecord {
             should_scatter: true,
             attenuation: self.albedo,
-            scattered: Ray::new(hit_record.p, target - hit_record.p)
+            scattered: Ray::new(point, target - point)
+        }
+    }
+}
+
+impl Material for Metal {
+    fn scatter(&self, r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> ScatterRecord {
+        let reflected = reflect(Vec3::unit_vector(r.direction()), normal);
+
+        let scattered = Ray::new(point, reflected + self.fuzz*random_in_unit_sphere());
+        if scattered.direction().dot(normal) > 0.0 {
+            ScatterRecord {
+                should_scatter: true,
+                attenuation: self.albedo,
+                scattered
+            }
+        } else {
+            ScatterRecord {
+                should_scatter: false,
+                attenuation: Vec3::zero_vector(),
+                scattered
+            }
         }
     }
 }

@@ -1,23 +1,23 @@
 use vec3::Vec3;
 use ray::Ray;
-use material::Lambertian;
+use material::Material;
 
-pub struct Hit {
+pub struct Hit<'a> {
     pub hit: bool,
     pub t: f32,
     pub p: Vec3,
     pub normal: Vec3,
-    pub material: Option<Lambertian>
+    pub material: Option<&'a Box<Material>>
 }
 
 pub struct Sphere {
     center: Vec3,
     radius: f32,
-    material: Lambertian
+    material: Box<Material>
 }
 
-impl Hit {
-    pub fn no_hit() -> Hit {
+impl<'a> Hit<'a> {
+    pub fn no_hit() -> Hit<'a> {
         Hit {
             hit: false,
             t: 0.0,
@@ -29,7 +29,7 @@ impl Hit {
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32, material: Lambertian) -> Sphere {
+    pub fn new(center: Vec3, radius: f32, material: Box<Material>) -> Sphere {
         Sphere {
             center,
             radius,
@@ -50,7 +50,7 @@ impl Sphere {
                     t: temp,
                     p: r.point_at_parameter(temp),
                     normal: (r.point_at_parameter(temp) - self.center) / self.radius,
-                    material: Some(self.material)
+                    material: Some(&self.material)
                 }
             }
             let temp = (-b + discriminant.sqrt()) / a;
@@ -60,7 +60,7 @@ impl Sphere {
                     t: temp,
                     p: r.point_at_parameter(temp),
                     normal: (r.point_at_parameter(temp) - self.center) / self.radius,
-                    material: Some(self.material)
+                    material: Some(&self.material)
                 }
             }
         }

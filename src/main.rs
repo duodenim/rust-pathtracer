@@ -18,8 +18,8 @@ use sphere::Sphere;
 use sphere::Hit;
 
 mod material;
-use material::Material;
 use material::Lambertian;
+use material::Metal;
 
 fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
     let mut closest_so_far = 50.0;
@@ -33,7 +33,10 @@ fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
     }
     if hit_rec.hit {
         let material = hit_rec.material.unwrap();
-        let scatter_rec = material.scatter(r, &hit_rec);
+        let normal = hit_rec.normal;
+        let point = hit_rec.p;
+        let t = hit_rec.t;
+        let scatter_rec = material.scatter(r, t, point, normal);
         if scatter_rec.should_scatter && depth < 50 {
             return scatter_rec.attenuation * color(&scatter_rec.scattered, world, depth + 1);
         } else {
@@ -46,8 +49,8 @@ fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 400;
-    let image_height = 200;
+    let image_width = 480;
+    let image_height = 270;
     let samples_per_pixel = 100;
 
     let x = Vec3::zero_vector();
@@ -80,8 +83,10 @@ fn main() {
 
     //Generate world
     let mut world = Vec::new();
-    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5, Lambertian::new(Vec3::new(0.8, 0.3, 0.3))));
-    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0, Lambertian::new(Vec3::new(0.8, 0.8, 0.0))));
+    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5, Box::new(Lambertian::new(Vec3::new(0.8, 0.3, 0.3)))));
+    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0, Box::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)))));
+    world.push(Sphere::new(Vec3::new(1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0))));
+    world.push(Sphere::new(Vec3::new(-1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.8, 0.8), 0.3))));
 
     //Generate image
     let mut data = Vec::new();

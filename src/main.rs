@@ -21,6 +21,7 @@ use sphere::Hit;
 mod material;
 use material::Lambertian;
 use material::Metal;
+use material::Dielectric;
 
 mod camera;
 use camera::Camera;
@@ -67,15 +68,39 @@ fn main() {
         println!("Saving to {}....", filename);
     }
 
-    //Generate world
+    //Save start time
+    let start_time = std::time::Instant::now();
+
+    //Generate world as seen in Chapter 12
     let mut world = Vec::new();
-    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5, Box::new(Lambertian::new(Vec3::new(0.8, 0.3, 0.3)))));
-    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0, Box::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)))));
-    world.push(Sphere::new(Vec3::new(1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0))));
-    world.push(Sphere::new(Vec3::new(-1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.8, 0.8), 0.3))));
+    world.push(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Lambertian::new(Vec3::new(0.5, 0.5, 0.5)))));
+
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat = rand::random::<f32>();
+            let center = Vec3::new(a as f32 + 0.9 * rand::random::<f32>(), 0.2, b as f32 + 0.9 * rand::random::<f32>());
+            if (center-Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                if choose_mat < 0.8 {
+                    world.push(Sphere::new(center, 0.2, Box::new(Lambertian::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>())))));
+                } else if choose_mat < 0.95 {
+                    world.push(Sphere::new(center, 0.2, Box::new(Metal::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()), 0.5 * rand::random::<f32>()))));
+                } else {
+                    world.push(Sphere::new(center, 0.2, Box::new(Dielectric::new(1.5))));
+                }
+            }
+        }
+    }
+
+    world.push(Sphere::new(Vec3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5))));
+    world.push(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Vec3::new(0.4, 0.2, 0.1)))));
+    world.push(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Vec3::new(0.7, 0.6, 0.5), 0.0))));
 
     //Setup camera
-    let camera = Camera::new(Vec3::new(-2.0, 2.0, 1.0), Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 1.0, 0.0), 90.0, image_width as f32 / image_height as f32);
+    let lookfrom = Vec3::new(12.0, 2.0, 2.0);
+    let lookat = Vec3::new(0.0, 1.0, 0.0);
+    let focus_dist = (lookfrom - lookat).length();
+    let aperture = 0.0;
+    let camera = Camera::new(lookfrom, lookat, Vec3::new(0.0, 1.0, 0.0), 20.0, image_width as f32 / image_height as f32, aperture, focus_dist);
 
     //Generate image
     let mut data = Vec::new();
@@ -110,6 +135,15 @@ fn main() {
             data.push(255);
         }
     }
+
+    //Save end time
+    let end_time = std::time::Instant::now();
+
+    let render_duration = end_time.duration_since(start_time);
+    let render_time_sec = render_duration.as_secs();
+    let render_time_ms = render_duration.subsec_millis();
+
+    println!("Render took {}.{} seconds", render_time_sec, render_time_ms);
 
     //Store image to file
     let path = Path::new(filename);

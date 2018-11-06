@@ -6,3 +6,4 @@ authors = ["Joseph Schulte <schulteajoseph@gmail.com>"]
 [dependencies]
 rand = "0.5.5"
 png = "0.13.1"
+gif = "0.10.1"

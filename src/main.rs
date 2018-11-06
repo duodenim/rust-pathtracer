@@ -8,6 +8,9 @@ use png::HasParameters;
 
 extern crate rand;
 
+extern crate gif;
+use gif::Parameter;
+
 mod vec3;
 use vec3::Vec3;
 
@@ -53,9 +56,10 @@ fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 480;
-    let image_height = 270;
+    let image_width: u16= 960;
+    let image_height: u16 = 540;
     let samples_per_pixel = 100;
+    let num_frames = 60;
 
     let args: Vec<String> = env::args().collect();
 
@@ -75,53 +79,74 @@ fn main() {
     world.push(Sphere::new(Vec3::new(-1.0, 0.0, -1.0), 0.5, Box::new(Metal::new(Vec3::new(0.8, 0.8, 0.8), 0.3))));
 
     //Setup camera
-    let camera = Camera::new(Vec3::new(-2.0, 2.0, 1.0), Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 1.0, 0.0), 90.0, image_width as f32 / image_height as f32);
+    let mut output_gif = Vec::new();
 
-    //Generate image
-    let mut data = Vec::new();
+    let step = (360.0 as f32).to_radians() / num_frames as f32;
+    for frame_num in 0..num_frames {
+        let this_step = frame_num as f32 * step;
+        let camera = Camera::new(Vec3::new(-2.0 * this_step.sin(), 2.0, 2.0 * this_step.cos()), Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 1.0, 0.0), 90.0, image_width as f32 / image_height as f32);
 
-    for y in (0..image_height).rev() {
-        for x in 0..image_width {
-            let mut avg_color = Vec3::zero_vector();
+        //Generate image
+        let mut data = Vec::new();
 
-            for _ in 0..samples_per_pixel {
-                let u = (x as f32 + rand::random::<f32>()) / image_width as f32;
-                let v = (y as f32 + rand::random::<f32>()) / image_height as f32;
+        for y in (0..image_height).rev() {
+            for x in 0..image_width {
+                let mut avg_color = Vec3::zero_vector();
 
-                //let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
+                for _ in 0..samples_per_pixel {
+                    let u = (x as f32 + rand::random::<f32>()) / image_width as f32;
+                    let v = (y as f32 + rand::random::<f32>()) / image_height as f32;
 
-                let r = camera.get_ray(u, v);
-                //println!("Ray is: {:?}", r);
-                let col = color(&r, &world, 0);
+                    //let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
 
-                avg_color = avg_color + (col / samples_per_pixel as f32);
+                    let r = camera.get_ray(u, v);
+                    //println!("Ray is: {:?}", r);
+                    let col = color(&r, &world, 0);
+
+                    avg_color = avg_color + (col / samples_per_pixel as f32);
+                }
+
+                //Do gamma correction
+                avg_color = Vec3::new(avg_color.x().sqrt(), avg_color.y().sqrt(), avg_color.z().sqrt());
+
+                let ir = (255.99*avg_color.x()) as u8;
+                let ig = (255.99*avg_color.y()) as u8;
+                let ib = (255.99*avg_color.z()) as u8;
+
+                data.push(ir);
+                data.push(ig);
+                data.push(ib);
+                data.push(255);
             }
-
-            //Do gamma correction
-            avg_color = Vec3::new(avg_color.x().sqrt(), avg_color.y().sqrt(), avg_color.z().sqrt());
-
-            let ir = (255.99*avg_color.x()) as u8;
-            let ig = (255.99*avg_color.y()) as u8;
-            let ib = (255.99*avg_color.z()) as u8;
-
-            data.push(ir);
-            data.push(ig);
-            data.push(ib);
-            data.push(255);
         }
+
+        //Store image to file
+        let path = Path::new(filename);
+        let file = File::create(path).unwrap();
+        let ref mut w = BufWriter::new(file);
+
+        let mut encoder = png::Encoder::new(w, image_width.into(), image_height.into());
+        encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+
+
+        writer.write_image_data(&data).unwrap();
+
+        let frame = gif::Frame::from_rgba(image_width, image_height, &mut data);
+
+        println!("Frame delay is {}", frame.delay);
+
+        output_gif.push(gif::Frame::from_rgba(image_width, image_height, &mut data));
     }
 
-    //Store image to file
-    let path = Path::new(filename);
-    let file = File::create(path).unwrap();
-    let ref mut w = BufWriter::new(file);
+    let mut gif_file = File::create("output.gif").unwrap();
+    let mut encoder = gif::Encoder::new(&mut gif_file, image_width, image_height, &[]).unwrap();
+    gif::Repeat::Infinite.set_param(&mut encoder).unwrap();
 
-    let mut encoder = png::Encoder::new(w, image_width, image_height);
-    encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
-    let mut writer = encoder.write_header().unwrap();
+    for frame in output_gif.iter() {
+        encoder.write_frame(&frame).unwrap();
+    }
 
-
-    writer.write_image_data(&data).unwrap();
 
     println!("Done");
 }

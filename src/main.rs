@@ -134,6 +134,7 @@ fn main() {
             data.push(ib);
             data.push(255);
         }
+        print!("{} / {} scanlines rendered \r", (image_height - y), image_height)
     }
 
     //Save end time

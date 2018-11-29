@@ -1,5 +1,6 @@
 use ray::Ray;
 use vec3::Vec3;
+use texture::Texture;
 
 extern crate rand;
 
@@ -13,14 +14,12 @@ pub trait Material {
     fn scatter(&self, r: &Ray, t: f32, point: Vec3, normal: Vec3) -> ScatterRecord;
 }
 
-#[derive(Copy, Clone)]
 pub struct Lambertian {
-    albedo: Vec3
+    albedo: Box<Texture + Sync>
 }
 
-#[derive(Copy, Clone)]
 pub struct Metal {
-    albedo: Vec3,
+    albedo: Box<Texture + Sync>,
     fuzz: f32
 }
 
@@ -30,7 +29,7 @@ pub struct Dielectric {
 }
 
 impl Lambertian {
-    pub fn new(albedo: Vec3) -> Lambertian {
+    pub fn new(albedo: Box<Texture + Sync>) -> Lambertian {
         Lambertian {
             albedo
         }
@@ -38,7 +37,7 @@ impl Lambertian {
 }
 
 impl Metal {
-    pub fn new(albedo: Vec3, fuzz: f32) -> Metal {
+    pub fn new(albedo: Box<Texture + Sync>, fuzz: f32) -> Metal {
         Metal {
             albedo,
             fuzz
@@ -100,7 +99,7 @@ impl Material for Lambertian {
         let target = point + normal + random_in_unit_sphere();
         ScatterRecord {
             should_scatter: true,
-            attenuation: self.albedo,
+            attenuation: self.albedo.value(0.0, 0.0, &point),
             scattered: Ray::new(point, target - point)
         }
     }
@@ -114,7 +113,7 @@ impl Material for Metal {
         if scattered.direction().dot(normal) > 0.0 {
             ScatterRecord {
                 should_scatter: true,
-                attenuation: self.albedo,
+                attenuation: self.albedo.value(0.0, 0.0, &point),
                 scattered
             }
         } else {

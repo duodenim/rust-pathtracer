@@ -7,13 +7,13 @@ pub struct Hit<'a> {
     pub t: f32,
     pub p: Vec3,
     pub normal: Vec3,
-    pub material: Option<&'a Box<Material>>
+    pub material: Option<&'a Box<Material + Sync>>
 }
 
 pub struct Sphere {
     center: Vec3,
     radius: f32,
-    material: Box<Material>
+    material: Box<Material + Sync>
 }
 
 impl<'a> Hit<'a> {
@@ -29,7 +29,7 @@ impl<'a> Hit<'a> {
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32, material: Box<Material>) -> Sphere {
+    pub fn new(center: Vec3, radius: f32, material: Box<Material + Sync>) -> Sphere {
         Sphere {
             center,
             radius,

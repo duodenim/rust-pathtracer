@@ -26,6 +26,13 @@ use material::Dielectric;
 mod camera;
 use camera::Camera;
 
+mod texture;
+use texture::ConstantTexture;
+use texture::CheckerTexture;
+
+extern crate rayon;
+use rayon::prelude::*;
+
 fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
     let mut closest_so_far = 50.0;
     let mut hit_rec = Hit::no_hit();
@@ -73,7 +80,10 @@ fn main() {
 
     //Generate world as seen in Chapter 12
     let mut world = Vec::new();
-    world.push(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Lambertian::new(Vec3::new(0.5, 0.5, 0.5)))));
+    let const_green = ConstantTexture::new(Vec3::new(0.2, 0.3, 0.1));
+    let const_white = ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9));
+    let checkerboard = CheckerTexture::new(Box::new(const_green), Box::new(const_white));
+    world.push(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Metal::new(Box::new(checkerboard), 0.0))));
 
     for a in -11..11 {
         for b in -11..11 {
@@ -81,9 +91,11 @@ fn main() {
             let center = Vec3::new(a as f32 + 0.9 * rand::random::<f32>(), 0.2, b as f32 + 0.9 * rand::random::<f32>());
             if (center-Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
                 if choose_mat < 0.8 {
-                    world.push(Sphere::new(center, 0.2, Box::new(Lambertian::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>())))));
+                    let tex = ConstantTexture::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()));
+                    world.push(Sphere::new(center, 0.2, Box::new(Lambertian::new(Box::new(tex)))));
                 } else if choose_mat < 0.95 {
-                    world.push(Sphere::new(center, 0.2, Box::new(Metal::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()), 0.5 * rand::random::<f32>()))));
+                    let tex = ConstantTexture::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()));
+                    world.push(Sphere::new(center, 0.2, Box::new(Metal::new(Box::new(tex), 0.5 * rand::random::<f32>()))));
                 } else {
                     world.push(Sphere::new(center, 0.2, Box::new(Dielectric::new(1.5))));
                 }
@@ -92,8 +104,8 @@ fn main() {
     }
 
     world.push(Sphere::new(Vec3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5))));
-    world.push(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Vec3::new(0.4, 0.2, 0.1)))));
-    world.push(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Vec3::new(0.7, 0.6, 0.5), 0.0))));
+    world.push(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.4, 0.2, 0.1)))))));
+    world.push(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Box::new(ConstantTexture::new(Vec3::new(0.7, 0.6, 0.5))), 0.0))));
 
     //Setup camera
     let lookfrom = Vec3::new(12.0, 2.0, 2.0);
@@ -107,20 +119,23 @@ fn main() {
 
     for y in (0..image_height).rev() {
         for x in 0..image_width {
-            let mut avg_color = Vec3::zero_vector();
+            let mut samples = vec![Vec3::zero_vector(); samples_per_pixel];
 
-            for _ in 0..samples_per_pixel {
+            samples.par_iter_mut().for_each( |sample| {
                 let u = (x as f32 + rand::random::<f32>()) / image_width as f32;
                 let v = (y as f32 + rand::random::<f32>()) / image_height as f32;
 
-                //let r = Ray::new(origin, lower_left_corner + u*horizontal + v*vertical);
-
                 let r = camera.get_ray(u, v);
-                //println!("Ray is: {:?}", r);
-                let col = color(&r, &world, 0);
+                *sample = color(&r, &world, 0);
+            });
 
-                avg_color = avg_color + (col / samples_per_pixel as f32);
-            }
+            let mut avg_color = Vec3::zero_vector();
+
+            samples.iter().for_each( |sample| {
+                avg_color = avg_color + *sample;
+            });
+
+            avg_color = avg_color / samples_per_pixel as f32;
 
             //Do gamma correction
             avg_color = Vec3::new(avg_color.x().sqrt(), avg_color.y().sqrt(), avg_color.z().sqrt());

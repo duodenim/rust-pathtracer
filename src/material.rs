@@ -23,9 +23,12 @@ pub struct Metal {
     fuzz: f32
 }
 
-#[derive(Copy, Clone)]
 pub struct Dielectric {
     ref_idx: f32
+}
+
+pub struct Isotropic {
+    albedo: Box<Texture + Sync>
 }
 
 impl Lambertian {
@@ -49,6 +52,14 @@ impl Dielectric {
     pub fn new(ref_idx: f32) -> Dielectric {
         Dielectric {
             ref_idx
+        }
+    }
+}
+
+impl Isotropic {
+    pub fn new(albedo: Box<Texture + Sync>) -> Isotropic {
+        Isotropic {
+            albedo
         }
     }
 }
@@ -161,6 +172,16 @@ impl Material for Dielectric {
             should_scatter: true,
             attenuation: Vec3::new(1.0, 1.0, 1.0),
             scattered
+        }
+    }
+}
+
+impl Material for Isotropic {
+    fn scatter(&self, _r: &Ray, _t: f32, point: Vec3, _normal: Vec3) -> ScatterRecord {
+        ScatterRecord {
+            should_scatter: true,
+            attenuation: self.albedo.value(0.0, 0.0, &point),
+            scattered: Ray::new(point, random_in_unit_sphere())
         }
     }
 }

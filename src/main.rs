@@ -18,6 +18,7 @@ mod hitable;
 use hitable::Hit;
 use hitable::Hitable;
 use hitable::ConstantMedium;
+use hitable::BVH_Node;
 
 mod sphere;
 use sphere::Sphere;
@@ -34,19 +35,14 @@ mod texture;
 use texture::ConstantTexture;
 use texture::CheckerTexture;
 
+mod aabb;
+
 extern crate rayon;
 use rayon::prelude::*;
 
-fn color(r : &Ray, world: &[Box<Hitable + Sync>], depth: u32) -> Vec3 {
+fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
     let mut closest_so_far = 50.0;
-    let mut hit_rec = Hit::no_hit();
-    for sphere in world {
-        let hit = sphere.hit(0.001, closest_so_far, r);
-        if hit.hit {
-            closest_so_far = hit.t;
-            hit_rec = hit;
-        }
-    }
+    let hit_rec = world.hit(0.001, closest_so_far, r);
     if hit_rec.hit {
         let material = hit_rec.material.unwrap();
         let normal = hit_rec.normal;
@@ -65,9 +61,9 @@ fn color(r : &Ray, world: &[Box<Hitable + Sync>], depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 960;
-    let image_height = 540;
-    let samples_per_pixel = 1000;
+    let image_width = 480;
+    let image_height = 270;
+    let samples_per_pixel = 100;
 
     let args: Vec<String> = env::args().collect();
 
@@ -89,8 +85,8 @@ fn main() {
     let checkerboard = CheckerTexture::new(Box::new(const_green), Box::new(const_white));
     world.push(Box::new(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Metal::new(Box::new(checkerboard), 0.0)))));
 
-    for a in -5..5 {
-        for b in -5..5 {
+    for a in -11..11 {
+        for b in -11..11 {
             let choose_mat = rand::random::<f32>();
             let center = Vec3::new(a as f32 + 0.9 * rand::random::<f32>(), 0.2, b as f32 + 0.9 * rand::random::<f32>());
             if (center-Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
@@ -110,9 +106,11 @@ fn main() {
     world.push(Box::new(Sphere::new(Vec3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
     world.push(Box::new(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.4, 0.2, 0.1))))))));
     world.push(Box::new(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Box::new(ConstantTexture::new(Vec3::new(0.7, 0.6, 0.5))), 0.0)))));
-    let sphere = Box::new(Sphere::new(Vec3::new(0.0, 0.0, 0.0), 100.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(1.0, 1.0, 1.0)))))));
-    let fog_sphere = Box::new(ConstantMedium::new(sphere, 0.02, Box::new(ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9)))));
-    world.push(fog_sphere);
+    //let sphere = Box::new(Sphere::new(Vec3::new(0.0, 0.0, 0.0), 100.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(1.0, 1.0, 1.0)))))));
+    //let fog_sphere = Box::new(ConstantMedium::new(sphere, 0.02, Box::new(ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9)))));
+    //world.push(fog_sphere);
+
+    let bvh_tree: Box<Hitable + Sync> = Box::new(BVH_Node::new(world));
 
     //Setup camera
     let lookfrom = Vec3::new(12.0, 2.0, 2.0);
@@ -133,7 +131,7 @@ fn main() {
                 let v = (y as f32 + rand::random::<f32>()) / image_height as f32;
 
                 let r = camera.get_ray(u, v);
-                *sample = color(&r, &world, 0);
+                *sample = color(&r, &bvh_tree, 0);
             });
 
             let mut avg_color = Vec3::zero_vector();

@@ -1,8 +1,11 @@
+use aabb::AABB;
+use aabb::surrounding_bbox;
 use texture::Texture;
 use vec3::Vec3;
 use material::Material;
 use ray::Ray;
 use material::Isotropic;
+use std::cmp::Ordering;
 
 extern crate rand;
 
@@ -28,12 +31,19 @@ impl<'a> Hit<'a> {
 
 pub trait Hitable {
     fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit;
+    fn bounding_box(&self) -> AABB;
 }
 
 pub struct ConstantMedium {
     boundary: Box<Hitable + Sync>,
     density: f32,
     material: Box<Material + Sync>
+}
+
+pub struct BVH_Node {
+    left: Box<Hitable + Sync>,
+    right: Option<Box<Hitable + Sync>>,
+    bbox: AABB
 }
 
 impl ConstantMedium {
@@ -83,5 +93,115 @@ impl Hitable for ConstantMedium {
             }
         }
         Hit::no_hit()
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.boundary.bounding_box()
+    }
+}
+
+impl Hitable for BVH_Node {
+    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit {
+        let bbox_hit = self.bbox.hit(r, t_min, t_max);
+        if bbox_hit {
+            let left_hit = self.left.hit(t_min, t_max, r);
+
+            let right_hit = match self.right {
+                Some(ref x) => x.hit(t_min, t_max, r),
+                None => Hit::no_hit()
+            };
+            if left_hit.hit && right_hit.hit {
+                if left_hit.t < right_hit.t {
+                    return left_hit;
+                } else {
+                    return right_hit;
+                }
+            } else if left_hit.hit {
+                return left_hit;
+            } else if right_hit.hit {
+                return right_hit;
+            } else {
+                return Hit::no_hit();
+            }
+        }
+        Hit::no_hit()
+
+    }
+    fn bounding_box(&self) -> AABB {
+        self.bbox
+    }
+}
+
+impl BVH_Node {
+    pub fn new(mut list: Vec<Box<Hitable + Sync>>) -> BVH_Node {
+        let axis = (3.0 * rand::random::<f32>()) as u32;
+
+        //Sorting goes here
+        if axis == 0 {
+            list.sort_by(|a, b| {
+                let left_bbox = a.bounding_box();
+                let right_bbox = b.bounding_box();
+
+                if left_bbox.min().x() < right_bbox.min().x() {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            });
+        } else if axis == 1 {
+            list.sort_by(|a, b| {
+                let left_bbox = a.bounding_box();
+                let right_bbox = b.bounding_box();
+
+                if left_bbox.min().y() < right_bbox.min().y() {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            });
+        } else {
+            list.sort_by(|a, b| {
+                let left_bbox = a.bounding_box();
+                let right_bbox = b.bounding_box();
+
+                if left_bbox.min().z() < right_bbox.min().z() {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            });
+        }
+
+        if list.len() == 1 {
+            let hitable = list.remove(0);
+            let bbox = hitable.bounding_box();
+            BVH_Node {
+                left: hitable,
+                right: None,
+                bbox
+            }
+        } else if list.len() == 2 {
+            let right = list.remove(1);
+            let left = list.remove(0);
+            let left_bbox = left.bounding_box();
+            let right_bbox = right.bounding_box();
+            BVH_Node {
+                left,
+                right: Some(right),
+                bbox: surrounding_bbox(left_bbox, right_bbox)
+            }
+        } else {
+            let length = list.len();
+            let right = list.split_off(length / 2);
+            let left = Box::new(BVH_Node::new(list));
+            let right = Box::new(BVH_Node::new(right));
+            let left_bbox = left.bounding_box();
+            let right_bbox = right.bounding_box();
+            BVH_Node {
+                left: left,
+                right: Some(right),
+                bbox: surrounding_bbox(left_bbox, right_bbox)
+            }
+        }
     }
 }

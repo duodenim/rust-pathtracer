@@ -21,6 +21,9 @@ use hitable::BvhNode;
 mod sphere;
 use sphere::Sphere;
 
+mod triangle;
+use triangle::Triangle;
+
 mod material;
 use material::Lambertian;
 use material::Metal;
@@ -58,9 +61,9 @@ fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 480;
-    let image_height = 270;
-    let samples_per_pixel = 100;
+    let image_width = 1280;
+    let image_height = 720;
+    let samples_per_pixel = 1000;
 
     let args: Vec<String> = env::args().collect();
 
@@ -80,9 +83,9 @@ fn main() {
     let const_green = ConstantTexture::new(Vec3::new(0.2, 0.3, 0.1));
     let const_white = ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9));
     let checkerboard = CheckerTexture::new(Box::new(const_green), Box::new(const_white));
-    world.push(Box::new(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Metal::new(Box::new(checkerboard), 0.0)))));
+    //world.push(Box::new(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Metal::new(Box::new(checkerboard), 0.0)))));
 
-    for a in -11..11 {
+    /*for a in -11..11 {
         for b in -11..11 {
             let choose_mat = rand::random::<f32>();
             let center = Vec3::new(a as f32 + 0.9 * rand::random::<f32>(), 0.2, b as f32 + 0.9 * rand::random::<f32>());
@@ -98,20 +101,26 @@ fn main() {
                 }
             }
         }
-    }
+    }*/
 
-    world.push(Box::new(Sphere::new(Vec3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
-    world.push(Box::new(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.4, 0.2, 0.1))))))));
-    world.push(Box::new(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Box::new(ConstantTexture::new(Vec3::new(0.7, 0.6, 0.5))), 0.0)))));
+    //world.push(Box::new(Sphere::new(Vec3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
+    //world.push(Box::new(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.4, 0.2, 0.1))))))));
+    //world.push(Box::new(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Box::new(ConstantTexture::new(Vec3::new(0.7, 0.6, 0.5))), 0.0)))));
     //let sphere = Box::new(Sphere::new(Vec3::new(0.0, 0.0, 0.0), 100.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(1.0, 1.0, 1.0)))))));
     //let fog_sphere = Box::new(ConstantMedium::new(sphere, 0.02, Box::new(ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9)))));
     //world.push(fog_sphere);
 
+    let tris = Triangle::new(Vec3::new(-0.5, -0.5, 0.0), Vec3::new(0.0, 0.5, 0.0), Vec3::new(0.5, -0.5, 0.0), Vec3::new(0.0, 0.0, 1.0), Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))))));
+    world.push(Box::new(tris));
+    let tris2 = Triangle::new(Vec3::new(1.5, -0.5, -1.5), Vec3::new(1.5, -0.5, 1.5), Vec3::new(-1.5, -0.5, -1.5), Vec3::new(0.0, 1.0, 0.0), Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))))));
+    world.push(Box::new(tris2));
+    let tris3 = Triangle::new(Vec3::new(1.5, -0.5, 1.5), Vec3::new(-1.5, -0.5, -1.5), Vec3::new(-1.5, -0.5, 1.5), Vec3::new(0.0, 1.0, 0.0), Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))))));
+    world.push(Box::new(tris3));
     let bvh_tree: Box<Hitable + Sync> = Box::new(BvhNode::new(world));
 
     //Setup camera
-    let lookfrom = Vec3::new(12.0, 2.0, 2.0);
-    let lookat = Vec3::new(0.0, 1.0, 0.0);
+    let lookfrom = 3.0 * Vec3::new(-2.26788425, 0.320256859, 1.83503199);
+    let lookat = Vec3::new(-1.33643341, 0.320256859, 1.47116470);
     let focus_dist = (lookfrom - lookat).length();
     let aperture = 0.0;
     let camera = Camera::new(lookfrom, lookat, Vec3::new(0.0, 1.0, 0.0), 20.0, image_width as f32 / image_height as f32, aperture, focus_dist);

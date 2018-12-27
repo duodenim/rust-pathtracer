@@ -40,7 +40,7 @@ pub struct ConstantMedium {
     material: Box<Material + Sync>
 }
 
-pub struct BVH_Node {
+pub struct BvhNode {
     left: Box<Hitable + Sync>,
     right: Option<Box<Hitable + Sync>>,
     bbox: AABB
@@ -100,7 +100,7 @@ impl Hitable for ConstantMedium {
     }
 }
 
-impl Hitable for BVH_Node {
+impl Hitable for BvhNode {
     fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit {
         let bbox_hit = self.bbox.hit(r, t_min, t_max);
         if bbox_hit {
@@ -132,8 +132,8 @@ impl Hitable for BVH_Node {
     }
 }
 
-impl BVH_Node {
-    pub fn new(mut list: Vec<Box<Hitable + Sync>>) -> BVH_Node {
+impl BvhNode {
+    pub fn new(mut list: Vec<Box<Hitable + Sync>>) -> BvhNode {
         let axis = (3.0 * rand::random::<f32>()) as u32;
 
         //Sorting goes here
@@ -175,7 +175,7 @@ impl BVH_Node {
         if list.len() == 1 {
             let hitable = list.remove(0);
             let bbox = hitable.bounding_box();
-            BVH_Node {
+            BvhNode {
                 left: hitable,
                 right: None,
                 bbox
@@ -185,7 +185,7 @@ impl BVH_Node {
             let left = list.remove(0);
             let left_bbox = left.bounding_box();
             let right_bbox = right.bounding_box();
-            BVH_Node {
+            BvhNode {
                 left,
                 right: Some(right),
                 bbox: surrounding_bbox(left_bbox, right_bbox)
@@ -193,11 +193,11 @@ impl BVH_Node {
         } else {
             let length = list.len();
             let right = list.split_off(length / 2);
-            let left = Box::new(BVH_Node::new(list));
-            let right = Box::new(BVH_Node::new(right));
+            let left = Box::new(BvhNode::new(list));
+            let right = Box::new(BvhNode::new(right));
             let left_bbox = left.bounding_box();
             let right_bbox = right.bounding_box();
-            BVH_Node {
+            BvhNode {
                 left: left,
                 right: Some(right),
                 bbox: surrounding_bbox(left_bbox, right_bbox)

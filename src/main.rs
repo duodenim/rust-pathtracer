@@ -15,10 +15,8 @@ mod ray;
 use ray::Ray;
 
 mod hitable;
-use hitable::Hit;
 use hitable::Hitable;
-use hitable::ConstantMedium;
-use hitable::BVH_Node;
+use hitable::BvhNode;
 
 mod sphere;
 use sphere::Sphere;
@@ -41,8 +39,7 @@ extern crate rayon;
 use rayon::prelude::*;
 
 fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
-    let mut closest_so_far = 50.0;
-    let hit_rec = world.hit(0.001, closest_so_far, r);
+    let hit_rec = world.hit(0.001, 50.0, r);
     if hit_rec.hit {
         let material = hit_rec.material.unwrap();
         let normal = hit_rec.normal;
@@ -110,7 +107,7 @@ fn main() {
     //let fog_sphere = Box::new(ConstantMedium::new(sphere, 0.02, Box::new(ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9)))));
     //world.push(fog_sphere);
 
-    let bvh_tree: Box<Hitable + Sync> = Box::new(BVH_Node::new(world));
+    let bvh_tree: Box<Hitable + Sync> = Box::new(BvhNode::new(world));
 
     //Setup camera
     let lookfrom = Vec3::new(12.0, 2.0, 2.0);

@@ -19,27 +19,25 @@ use hitable::Hitable;
 use hitable::BvhNode;
 
 mod sphere;
-use sphere::Sphere;
 
 mod triangle;
 use triangle::Triangle;
 
 mod material;
 use material::Lambertian;
-use material::Metal;
-use material::Dielectric;
 
 mod camera;
 use camera::Camera;
 
 mod texture;
 use texture::ConstantTexture;
-use texture::CheckerTexture;
 
 mod aabb;
 
 extern crate rayon;
 use rayon::prelude::*;
+
+extern crate tobj;
 
 fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
     let hit_rec = world.hit(0.001, 50.0, r);
@@ -61,18 +59,19 @@ fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 1280;
-    let image_height = 720;
-    let samples_per_pixel = 1000;
+    let image_width = 480;
+    let image_height = 270;
+    let samples_per_pixel = 100;
 
     let args: Vec<String> = env::args().collect();
 
-    let mut filename = "image.png";
+    let mut filename = "";
     if args.len() < 2 {
-        println!("Saving to image.png....");
+        println!("Usage: rust-pathtracer path_to_obj_file.obj");
+        std::process::exit(0);
     } else {
         filename = &args[1];
-        println!("Saving to {}....", filename);
+        println!("Rendering {}....", filename);
     }
 
     //Save start time
@@ -80,44 +79,43 @@ fn main() {
 
     //Generate world as seen in Chapter 12
     let mut world: Vec<Box<Hitable + Sync>> = Vec::new();
-    let const_green = ConstantTexture::new(Vec3::new(0.2, 0.3, 0.1));
-    let const_white = ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9));
-    let checkerboard = CheckerTexture::new(Box::new(const_green), Box::new(const_white));
-    //world.push(Box::new(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Metal::new(Box::new(checkerboard), 0.0)))));
 
-    /*for a in -11..11 {
-        for b in -11..11 {
-            let choose_mat = rand::random::<f32>();
-            let center = Vec3::new(a as f32 + 0.9 * rand::random::<f32>(), 0.2, b as f32 + 0.9 * rand::random::<f32>());
-            if (center-Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
-                if choose_mat < 0.8 {
-                    let tex = ConstantTexture::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()));
-                    world.push(Box::new(Sphere::new(center, 0.2, Box::new(Lambertian::new(Box::new(tex))))));
-                } else if choose_mat < 0.95 {
-                    let tex = ConstantTexture::new(Vec3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()));
-                    world.push(Box::new(Sphere::new(center, 0.2, Box::new(Metal::new(Box::new(tex), 0.5 * rand::random::<f32>())))));
-                } else {
-                    world.push(Box::new(Sphere::new(center, 0.2, Box::new(Dielectric::new(1.5)))));
-                }
-            }
+    let (models, _materials) = tobj::load_obj(Path::new(filename)).unwrap();
+    for model in models.iter() {
+        let num_tris = model.mesh.indices.len() / 3;
+        let mut i_idx = 0;
+        while i_idx < num_tris {
+            let v_idx1 = model.mesh.indices[3 * i_idx] as usize;
+            let v_idx2 = model.mesh.indices[(3 * i_idx) + 1] as usize;
+            let v_idx3 = model.mesh.indices[(3 * i_idx) + 2] as usize;
+
+            let v1_x = model.mesh.positions[3 * v_idx1];
+            let v1_y = model.mesh.positions[(3 * v_idx1) + 1];
+            let v1_z = model.mesh.positions[(3 * v_idx1) + 2];
+
+            let v2_x = model.mesh.positions[3 * v_idx2];
+            let v2_y = model.mesh.positions[(3 * v_idx2) + 1];
+            let v2_z = model.mesh.positions[(3 * v_idx2) + 2];
+
+            let v3_x = model.mesh.positions[3 * v_idx3];
+            let v3_y = model.mesh.positions[(3 * v_idx3) + 1];
+            let v3_z = model.mesh.positions[(3 * v_idx3) + 2];
+
+            let v1 = Vec3::new(v1_x, v1_y, v1_z);
+            let v2 = Vec3::new(v2_x, v2_y, v2_z);
+            let v3 = Vec3::new(v3_x, v3_y, v3_z);
+
+            let edge1 = v2 - v1;
+            let edge2 = v3 - v1;
+            let normal = Vec3::unit_vector(edge1.cross(edge2));
+            let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
+            let tris = Triangle::new(v1, v2, v3, normal, Box::new(material));
+            world.push(Box::new(tris));
+            i_idx = i_idx + 1;
         }
-    }*/
+    }
 
-    //world.push(Box::new(Sphere::new(Vec3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
-    //world.push(Box::new(Sphere::new(Vec3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.4, 0.2, 0.1))))))));
-    //world.push(Box::new(Sphere::new(Vec3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(Box::new(ConstantTexture::new(Vec3::new(0.7, 0.6, 0.5))), 0.0)))));
-    //let sphere = Box::new(Sphere::new(Vec3::new(0.0, 0.0, 0.0), 100.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(1.0, 1.0, 1.0)))))));
-    //let fog_sphere = Box::new(ConstantMedium::new(sphere, 0.02, Box::new(ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9)))));
-    //world.push(fog_sphere);
-
-    let tris = Triangle::new(Vec3::new(-0.5, -0.5, 0.0), Vec3::new(0.0, 0.5, 0.0), Vec3::new(0.5, -0.5, 0.0), Vec3::new(0.0, 0.0, 1.0), Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))))));
-    world.push(Box::new(tris));
-    let tris2 = Triangle::new(Vec3::new(1.5, -0.5, -1.5), Vec3::new(1.5, -0.5, 1.5), Vec3::new(-1.5, -0.5, -1.5), Vec3::new(0.0, 1.0, 0.0), Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))))));
-    world.push(Box::new(tris2));
-    let tris3 = Triangle::new(Vec3::new(1.5, -0.5, 1.5), Vec3::new(-1.5, -0.5, -1.5), Vec3::new(-1.5, -0.5, 1.5), Vec3::new(0.0, 1.0, 0.0), Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))))));
-    world.push(Box::new(tris3));
     let bvh_tree: Box<Hitable + Sync> = Box::new(BvhNode::new(world));
-
     //Setup camera
     let lookfrom = 3.0 * Vec3::new(-2.26788425, 0.320256859, 1.83503199);
     let lookat = Vec3::new(-1.33643341, 0.320256859, 1.47116470);
@@ -173,7 +171,7 @@ fn main() {
     println!("Render took {}.{} seconds", render_time_sec, render_time_ms);
 
     //Store image to file
-    let path = Path::new(filename);
+    let path = Path::new("output.png");
     let file = File::create(path).unwrap();
     let ref mut w = BufWriter::new(file);
 

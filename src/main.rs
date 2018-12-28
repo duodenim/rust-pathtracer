@@ -37,7 +37,8 @@ mod aabb;
 extern crate rayon;
 use rayon::prelude::*;
 
-extern crate tobj;
+extern crate obj;
+use obj::Obj;
 
 fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
     let hit_rec = world.hit(0.001, 50.0, r);
@@ -74,44 +75,33 @@ fn main() {
         println!("Rendering {}....", filename);
     }
 
-    //Save start time
-    let start_time = std::time::Instant::now();
-
-    //Generate world as seen in Chapter 12
+    //Generate world
     let mut world: Vec<Box<Hitable + Sync>> = Vec::new();
 
-    let (models, _materials) = tobj::load_obj(Path::new(filename)).unwrap();
-    for model in models.iter() {
-        let num_tris = model.mesh.indices.len() / 3;
-        let mut i_idx = 0;
-        while i_idx < num_tris {
-            let v_idx1 = model.mesh.indices[3 * i_idx] as usize;
-            let v_idx2 = model.mesh.indices[(3 * i_idx) + 1] as usize;
-            let v_idx3 = model.mesh.indices[(3 * i_idx) + 2] as usize;
+    let obj_file = Obj::<obj::SimplePolygon>::load(Path::new(filename)).unwrap();
+    for object in obj_file.objects.iter() {
+        for group in object.groups.iter() {
+            for polygon in group.polys.iter() {
+                assert!(polygon.len() == 3, "Shape must only be made out of triangles!");
+                let p_idx1 = polygon[0].0;
+                let p_idx2 = polygon[1].0;
+                let p_idx3 = polygon[2].0;
+                let v1 = obj_file.position[p_idx1];
+                let v2 = obj_file.position[p_idx2];
+                let v3 = obj_file.position[p_idx3];
 
-            let v1_x = model.mesh.positions[3 * v_idx1];
-            let v1_y = model.mesh.positions[(3 * v_idx1) + 1];
-            let v1_z = model.mesh.positions[(3 * v_idx1) + 2];
+                let v1 = Vec3::new(v1[0], v1[1], v1[2]);
+                let v2 = Vec3::new(v2[0], v2[1], v2[2]);
+                let v3 = Vec3::new(v3[0], v3[1], v3[2]);
 
-            let v2_x = model.mesh.positions[3 * v_idx2];
-            let v2_y = model.mesh.positions[(3 * v_idx2) + 1];
-            let v2_z = model.mesh.positions[(3 * v_idx2) + 2];
+                let edge1 = v2 - v1;
+                let edge2 = v3 - v1;
+                let normal = Vec3::unit_vector(edge1.cross(edge2));
+                let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
+                let tri = Triangle::new(v1, v2, v3, normal, Box::new(material));
+                world.push(Box::new(tri));
 
-            let v3_x = model.mesh.positions[3 * v_idx3];
-            let v3_y = model.mesh.positions[(3 * v_idx3) + 1];
-            let v3_z = model.mesh.positions[(3 * v_idx3) + 2];
-
-            let v1 = Vec3::new(v1_x, v1_y, v1_z);
-            let v2 = Vec3::new(v2_x, v2_y, v2_z);
-            let v3 = Vec3::new(v3_x, v3_y, v3_z);
-
-            let edge1 = v2 - v1;
-            let edge2 = v3 - v1;
-            let normal = Vec3::unit_vector(edge1.cross(edge2));
-            let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
-            let tris = Triangle::new(v1, v2, v3, normal, Box::new(material));
-            world.push(Box::new(tris));
-            i_idx = i_idx + 1;
+            }
         }
     }
 
@@ -125,6 +115,9 @@ fn main() {
 
     //Generate image
     let mut data = Vec::new();
+
+    //Save start time
+    let start_time = std::time::Instant::now();
 
     for y in (0..image_height).rev() {
         for x in 0..image_width {

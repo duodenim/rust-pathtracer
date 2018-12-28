@@ -7,4 +7,4 @@ authors = ["Joseph Schulte <schulteajoseph@gmail.com>"]
 rand = "0.5.5"
 png = "0.13.1"
 rayon = "1.0.3"
-tobj = "0.1.6"
+obj = "0.9.0"

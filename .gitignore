@@ -15,6 +15,9 @@ Cargo.lock
 /target
 **/*.rs.bk
 
+# Ignore any input files
+*.obj
+*.mtl
 
 # Ignore any output files
 *.png

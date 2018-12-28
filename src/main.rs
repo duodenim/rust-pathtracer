@@ -40,6 +40,39 @@ use rayon::prelude::*;
 extern crate obj;
 use obj::Obj;
 
+fn triangulate(vertices: Vec<Vec3>) -> Vec<Box::<Hitable + Sync>> {
+    assert!(vertices.len() >= 3, "Input face must have at least 3 vertices!");
+    let mut output: Vec<Box<Hitable + Sync>> = Vec::new();
+
+    //Trivial case: exactly 3 vertices are passed in
+    if vertices.len() == 3 {
+        let edge1 = vertices[1] - vertices[0];
+        let edge2 = vertices[2] - vertices[0];
+        let normal = Vec3::unit_vector(edge1.cross(edge2));
+        let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
+        output.push(Box::new(Triangle::new(vertices[0], vertices[1], vertices[2], normal, Box::new(material))));
+    } else { //Non trivial case - parse vertices as triangle fan
+        let common_idx = 0;
+        let mut first_idx = 1;
+        let mut second_idx = 2;
+
+        let common_v = vertices[common_idx];
+
+        while second_idx < vertices.len() {
+            let v1 = vertices[first_idx];
+            let v2 = vertices[second_idx];
+            let edge1 = v1 - common_v;
+            let edge2 = v2 - common_v;
+            let normal = Vec3::unit_vector(edge1.cross(edge2));
+            let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
+            output.push(Box::new(Triangle::new(common_v, v1, v2, normal, Box::new(material))));
+            first_idx = first_idx + 1;
+            second_idx = second_idx + 1;
+        }
+    }
+    output
+}
+
 fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
     let hit_rec = world.hit(0.001, 50.0, r);
     if hit_rec.hit {
@@ -82,25 +115,13 @@ fn main() {
     for object in obj_file.objects.iter() {
         for group in object.groups.iter() {
             for polygon in group.polys.iter() {
-                assert!(polygon.len() == 3, "Shape must only be made out of triangles!");
-                let p_idx1 = polygon[0].0;
-                let p_idx2 = polygon[1].0;
-                let p_idx3 = polygon[2].0;
-                let v1 = obj_file.position[p_idx1];
-                let v2 = obj_file.position[p_idx2];
-                let v3 = obj_file.position[p_idx3];
-
-                let v1 = Vec3::new(v1[0], v1[1], v1[2]);
-                let v2 = Vec3::new(v2[0], v2[1], v2[2]);
-                let v3 = Vec3::new(v3[0], v3[1], v3[2]);
-
-                let edge1 = v2 - v1;
-                let edge2 = v3 - v1;
-                let normal = Vec3::unit_vector(edge1.cross(edge2));
-                let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
-                let tri = Triangle::new(v1, v2, v3, normal, Box::new(material));
-                world.push(Box::new(tri));
-
+                let mut vertices: Vec<Vec3> = Vec::new();
+                for vertex in polygon.iter() {
+                    let index = vertex.0;
+                    let position = obj_file.position[index];
+                    vertices.push(Vec3::new(position[0], position[1], position[2]));
+                }
+                world.append(&mut triangulate(vertices));
             }
         }
     }

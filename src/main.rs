@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
-use std::env;
 
 extern crate png;
 use png::HasParameters;
@@ -40,7 +39,10 @@ use rayon::prelude::*;
 extern crate obj;
 use obj::Obj;
 
-fn triangulate(vertices: Vec<Vec3>) -> Vec<Box::<Hitable + Sync>> {
+extern crate clap;
+use clap::{Arg, App};
+
+fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<Hitable + Sync>> {
     assert!(vertices.len() >= 3, "Input face must have at least 3 vertices!");
     let mut output: Vec<Box<Hitable + Sync>> = Vec::new();
 
@@ -93,20 +95,41 @@ fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 480;
-    let image_height = 270;
-    let samples_per_pixel = 100;
+    //Setup args
+    let matches = App::new("Pathtracer")
+                        .arg(Arg::with_name("INPUT")
+                                    .required(true))
+                        .arg(Arg::with_name("samples_per_pixel")
+                                    .short("s")
+                                    .long("spp")
+                                    .help("Number of samples per pixel")
+                                    .takes_value(true))
+                        .arg(Arg::with_name("width")
+                                    .short("w")
+                                    .long("width")
+                                    .help("Rendered image width")
+                                    .takes_value(true))
+                        .arg(Arg::with_name("height")
+                                    .short("h")
+                                    .long("height")
+                                    .help("Rendered image height")
+                                    .takes_value(true))
+                        .arg(Arg::with_name("output")
+                                    .short("o")
+                                    .long("output")
+                                    .help("Output image path")
+                                    .takes_value(true))
+                        .get_matches();
 
-    let args: Vec<String> = env::args().collect();
+    let filename = matches.value_of("INPUT").unwrap();
+    let samples_per_pixel = matches.value_of("samples_per_pixel").unwrap_or("100");
+    let image_width = matches.value_of("width").unwrap_or("480");
+    let image_height = matches.value_of("height").unwrap_or("270");
+    let output_filename = matches.value_of("output").unwrap_or("output.png");
 
-    let mut filename = "";
-    if args.len() < 2 {
-        println!("Usage: rust-pathtracer path_to_obj_file.obj");
-        std::process::exit(0);
-    } else {
-        filename = &args[1];
-        println!("Rendering {}....", filename);
-    }
+    let samples_per_pixel = samples_per_pixel.parse::<usize>().unwrap();
+    let image_width = image_width.parse::<u32>().unwrap();
+    let image_height = image_height.parse::<u32>().unwrap();
 
     //Generate world
     let mut world: Vec<Box<Hitable + Sync>> = Vec::new();
@@ -185,7 +208,7 @@ fn main() {
     println!("Render took {}.{} seconds", render_time_sec, render_time_ms);
 
     //Store image to file
-    let path = Path::new("output.png");
+    let path = Path::new(output_filename);
     let file = File::create(path).unwrap();
     let ref mut w = BufWriter::new(file);
 

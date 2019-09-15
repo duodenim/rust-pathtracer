@@ -18,12 +18,13 @@ use hitable::Hitable;
 use hitable::BvhNode;
 
 mod sphere;
+use sphere::Sphere;
 
 mod triangle;
 use triangle::Triangle;
 
 mod material;
-use material::Lambertian;
+use material::{DiffuseLight, Lambertian};
 
 mod camera;
 use camera::Camera;
@@ -51,7 +52,7 @@ fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<dyn Hitable + Sync>> {
         let edge1 = vertices[1] - vertices[0];
         let edge2 = vertices[2] - vertices[0];
         let normal = Vec3::unit_vector(edge1.cross(edge2));
-        let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
+        let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(1.0, 1.0, 1.0))));
         output.push(Box::new(Triangle::new(vertices[0], vertices[1], vertices[2], normal, Box::new(material))));
     } else { //Non trivial case - parse vertices as triangle fan
         let common_idx = 0;
@@ -66,7 +67,7 @@ fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<dyn Hitable + Sync>> {
             let edge1 = v1 - common_v;
             let edge2 = v2 - common_v;
             let normal = Vec3::unit_vector(edge1.cross(edge2));
-            let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5))));
+            let material = Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(1.0, 1.0, 1.0))));
             output.push(Box::new(Triangle::new(common_v, v1, v2, normal, Box::new(material))));
             first_idx = first_idx + 1;
             second_idx = second_idx + 1;
@@ -77,21 +78,25 @@ fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<dyn Hitable + Sync>> {
 
 fn color(r : &Ray, world: &Box<dyn Hitable + Sync>, depth: u32) -> Vec3 {
     let hit_rec = world.hit(0.001, 50.0, r);
-    if hit_rec.hit {
-        let material = hit_rec.material.unwrap();
+    if hit_rec.is_some() {
+        let hit_rec = hit_rec.unwrap();
+        let material = hit_rec.material;
         let normal = hit_rec.normal;
         let point = hit_rec.p;
         let t = hit_rec.t;
         let scatter_rec = material.scatter(r, t, point, normal);
-        if scatter_rec.should_scatter && depth < 50 {
-            return scatter_rec.attenuation * color(&scatter_rec.scattered, world, depth + 1);
+        let emitted = material.emitted(0.0, 0.0, &point);
+        if scatter_rec.is_some() && depth < 50 {
+            let scatter_rec = scatter_rec.unwrap();
+            return emitted + scatter_rec.attenuation * color(&scatter_rec.scattered, world, depth + 1);
         } else {
-            return Vec3::new(0.0, 0.0, 0.0);
+            return emitted;
         }
     }
-    let unit_direction = Vec3::unit_vector(r.direction());
-    let t = 0.5 * (unit_direction.y() + 1.0);
-    (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+    Vec3::new(0.0, 0.0, 0.0)
+    //let unit_direction = Vec3::unit_vector(r.direction());
+    //let t = 0.5 * (unit_direction.y() + 1.0);
+    //(1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
 }
 
 fn main() {
@@ -151,6 +156,8 @@ fn main() {
         }
     }
 
+    world.push(Box::new(Sphere::new(Vec3::new(0.0, 0.0, 2.0), 0.5, Box::new(DiffuseLight::new(Box::new(ConstantTexture::new(Vec3::new(2.0, 2.0, 2.0))))))));
+
     let bvh_tree: Box<dyn Hitable + Sync> = Box::new(BvhNode::new(world));
     //Setup camera
     let lookfrom = 3.0 * Vec3::new(-2.26788425, 0.320256859, 1.83503199);
@@ -186,6 +193,7 @@ fn main() {
             avg_color = avg_color / samples_per_pixel as f32;
 
             //Do gamma correction
+            avg_color = avg_color.clamp(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
             avg_color = Vec3::new(avg_color.x().sqrt(), avg_color.y().sqrt(), avg_color.z().sqrt());
 
             let ir = (255.99*avg_color.x()) as u8;

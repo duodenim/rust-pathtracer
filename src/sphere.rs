@@ -22,7 +22,7 @@ impl Sphere {
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit {
+    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Option<Hit> {
         let oc = r.origin() - self.center;
         let a = r.direction().dot(r.direction());
         let b = oc.dot(r.direction());
@@ -31,32 +31,24 @@ impl Hitable for Sphere {
         if discriminant > 0.0 {
             let temp = (-b - discriminant.sqrt()) / a;
             if temp < t_max && temp > t_min {
-                return Hit {
-                    hit: true,
+                return Some(Hit {
                     t: temp,
                     p: r.point_at_parameter(temp),
                     normal: (r.point_at_parameter(temp) - self.center) / self.radius,
-                    material: Some(&self.material)
-                }
+                    material: &self.material
+                });
             }
             let temp = (-b + discriminant.sqrt()) / a;
             if temp < t_max && temp > t_min {
-                return Hit {
-                    hit: true,
+                return Some(Hit {
                     t: temp,
                     p: r.point_at_parameter(temp),
                     normal: (r.point_at_parameter(temp) - self.center) / self.radius,
-                    material: Some(&self.material)
-                }
+                    material: &self.material
+                });
             }
         }
-        Hit {
-            hit: false,
-            t: 0.0,
-            p: Vec3::new(0.0, 0.0, 0.0),
-            normal: Vec3::new(0.0, 0.0, 0.0),
-            material: None
-        }
+        None
     }
 
     fn bounding_box(&self) -> AABB {

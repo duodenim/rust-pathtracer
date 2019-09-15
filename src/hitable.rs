@@ -10,27 +10,14 @@ use std::cmp::Ordering;
 extern crate rand;
 
 pub struct Hit<'a> {
-    pub hit: bool,
     pub t: f32,
     pub p: Vec3,
     pub normal: Vec3,
-    pub material: Option<&'a Box<dyn Material + Sync>>
-}
-
-impl<'a> Hit<'a> {
-    pub fn no_hit() -> Hit<'a> {
-        Hit {
-            hit: false,
-            t: 0.0,
-            p: Vec3::new(0.0, 0.0, 0.0),
-            normal: Vec3::new(0.0, 0.0, 0.0),
-            material: None
-        }
-    }
+    pub material: &'a Box<(dyn Material + Sync)>
 }
 
 pub trait Hitable {
-    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit;
+    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Option<Hit>;
     fn bounding_box(&self) -> AABB;
 }
 
@@ -57,12 +44,14 @@ impl ConstantMedium {
 }
 
 impl Hitable for ConstantMedium {
-    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit {
-        let mut hit1 = self.boundary.hit(-1000.0, 1000.0, r);
-        if hit1.hit {
-            let mut hit2 = self.boundary.hit(hit1.t + 0.0001, 1000.0, r);
+    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Option<Hit> {
+        let hit1 = self.boundary.hit(-1000.0, 1000.0, r);
+        if hit1.is_some() {
+            let mut hit1 = hit1.unwrap();
+            let hit2 = self.boundary.hit(hit1.t + 0.0001, 1000.0, r);
 
-            if hit2.hit {
+            if hit2.is_some() {
+                let mut hit2 = hit2.unwrap();
                 if hit1.t < t_min {
                     hit1.t = t_min;
                 }
@@ -70,7 +59,7 @@ impl Hitable for ConstantMedium {
                     hit2.t = t_max;
                 }
                 if hit1.t >= hit2.t {
-                    return Hit::no_hit();
+                    return None;
                 }
                 if hit1.t < 0.0 {
                     hit1.t = 0.0;
@@ -82,17 +71,16 @@ impl Hitable for ConstantMedium {
                 //println!("Distance inside boundary: {}, Hit distance: {}", distance_inside_boundary, hit_distance);
                 if hit_distance < distance_inside_boundary {
                     let t = hit1.t + (hit_distance / r.direction().length());
-                    return Hit {
-                        hit: true,
+                    return Some(Hit {
                         t,
                         p: r.point_at_parameter(t),
                         normal: Vec3::new(1.0, 0.0, 0.0), //arbitrary vector
-                        material: Some(&self.material)
-                    };
+                        material: &self.material
+                    });
                 }
             }
         }
-        Hit::no_hit()
+        None
     }
 
     fn bounding_box(&self) -> AABB {
@@ -101,30 +89,34 @@ impl Hitable for ConstantMedium {
 }
 
 impl Hitable for BvhNode {
-    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Hit {
+    fn hit(&self, t_min: f32, t_max: f32, r: &Ray) -> Option<Hit> {
         let bbox_hit = self.bbox.hit(r, t_min, t_max);
         if bbox_hit {
             let left_hit = self.left.hit(t_min, t_max, r);
 
             let right_hit = match self.right {
                 Some(ref x) => x.hit(t_min, t_max, r),
-                None => Hit::no_hit()
+                None => None
             };
-            if left_hit.hit && right_hit.hit {
-                if left_hit.t < right_hit.t {
+            match (&left_hit, &right_hit) {
+                (Some(lh), Some(rh)) if lh.t < rh.t => {
                     return left_hit;
-                } else {
+                },
+                (Some(_), Some(_)) => {
                     return right_hit;
+                },
+                (Some(_), None) => {
+                    return left_hit;
+                },
+                (None, Some(_)) => {
+                    return right_hit;
+                },
+                _ => {
+                    return None
                 }
-            } else if left_hit.hit {
-                return left_hit;
-            } else if right_hit.hit {
-                return right_hit;
-            } else {
-                return Hit::no_hit();
             }
         }
-        Hit::no_hit()
+        None
 
     }
     fn bounding_box(&self) -> AABB {

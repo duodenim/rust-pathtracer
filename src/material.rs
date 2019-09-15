@@ -5,13 +5,13 @@ use texture::Texture;
 extern crate rand;
 
 pub struct ScatterRecord {
-    pub should_scatter: bool,
     pub attenuation: Vec3,
     pub scattered: Ray
 }
 
 pub trait Material {
-    fn scatter(&self, r: &Ray, t: f32, point: Vec3, normal: Vec3) -> ScatterRecord;
+    fn scatter(&self, r: &Ray, t: f32, point: Vec3, normal: Vec3) -> Option<ScatterRecord>;
+    fn emitted(&self, u: f32, v: f32, p: &Vec3) -> Vec3;
 }
 
 pub struct Lambertian {
@@ -29,6 +29,10 @@ pub struct Dielectric {
 
 pub struct Isotropic {
     albedo: Box<dyn Texture + Sync>
+}
+
+pub struct DiffuseLight {
+    emit: Box<dyn Texture + Sync>
 }
 
 impl Lambertian {
@@ -60,6 +64,14 @@ impl Isotropic {
     pub fn new(albedo: Box<dyn Texture + Sync>) -> Isotropic {
         Isotropic {
             albedo
+        }
+    }
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Box<dyn Texture + Sync>) -> DiffuseLight {
+        DiffuseLight {
+            emit
         }
     }
 }
@@ -106,39 +118,39 @@ fn refract(v: Vec3, n: Vec3, ni_over_nt: f32) -> RefractRecord {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> ScatterRecord {
+    fn scatter(&self, _r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> Option<ScatterRecord> {
         let target = point + normal + random_in_unit_sphere();
-        ScatterRecord {
-            should_scatter: true,
+        Some(ScatterRecord {
             attenuation: self.albedo.value(0.0, 0.0, &point),
             scattered: Ray::new(point, target - point)
-        }
+        })
+    }
+    fn emitted(&self, _u: f32, _v: f32, _p: &Vec3) -> Vec3 {
+        Vec3::new(0.0, 0.0, 0.0)
     }
 }
 
 impl Material for Metal {
-    fn scatter(&self, r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> ScatterRecord {
+    fn scatter(&self, r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> Option<ScatterRecord> {
         let reflected = reflect(Vec3::unit_vector(r.direction()), normal);
 
         let scattered = Ray::new(point, reflected + self.fuzz*random_in_unit_sphere());
         if scattered.direction().dot(normal) > 0.0 {
-            ScatterRecord {
-                should_scatter: true,
+            Some(ScatterRecord {
                 attenuation: self.albedo.value(0.0, 0.0, &point),
                 scattered
-            }
+            })
         } else {
-            ScatterRecord {
-                should_scatter: false,
-                attenuation: Vec3::zero_vector(),
-                scattered
-            }
+            None
         }
+    }
+    fn emitted(&self, _u: f32, _v: f32, _p: &Vec3) -> Vec3 {
+        Vec3::new(0.0, 0.0, 0.0)
     }
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> ScatterRecord {
+    fn scatter(&self, r: &Ray, _t: f32, point: Vec3, normal: Vec3) -> Option<ScatterRecord> {
         let outward_normal: Vec3;
         let reflected = reflect(r.direction(), normal);
         let ni_over_nt: f32;
@@ -168,20 +180,33 @@ impl Material for Dielectric {
             scattered = Ray::new(point, refract_rec.refracted);
         }
 
-        ScatterRecord {
-            should_scatter: true,
+        Some(ScatterRecord {
             attenuation: Vec3::new(1.0, 1.0, 1.0),
             scattered
-        }
+        })
+    }
+    fn emitted(&self, _u: f32, _v: f32, _p: &Vec3) -> Vec3 {
+        Vec3::new(0.0, 0.0, 0.0)
     }
 }
 
 impl Material for Isotropic {
-    fn scatter(&self, _r: &Ray, _t: f32, point: Vec3, _normal: Vec3) -> ScatterRecord {
-        ScatterRecord {
-            should_scatter: true,
+    fn scatter(&self, _r: &Ray, _t: f32, point: Vec3, _normal: Vec3) -> Option<ScatterRecord> {
+        Some(ScatterRecord {
             attenuation: self.albedo.value(0.0, 0.0, &point),
             scattered: Ray::new(point, random_in_unit_sphere())
-        }
+        })
+    }
+    fn emitted(&self, _u: f32, _v: f32, _p: &Vec3) -> Vec3 {
+        Vec3::new(0.0, 0.0, 0.0)
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(&self, _r: &Ray, _t: f32, _point: Vec3, _normal: Vec3) -> Option<ScatterRecord> {
+        None
+    }
+    fn emitted(&self, u: f32, v: f32, p: &Vec3) -> Vec3 {
+        self.emit.value(u, v, p)
     }
 }

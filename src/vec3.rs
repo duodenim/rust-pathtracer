@@ -58,6 +58,31 @@ impl Vec3 {
             z: self.x*v2.y - self.y*v2.x
         }
     }
+    pub fn clamp(&self, min: Vec3, max: Vec3) -> Vec3 {
+        let x = if self.x > max.x {
+            max.x
+        } else if self.x < min.x {
+            min.x
+        } else {
+            self.x
+        };
+        let y = if self.y > max.y {
+            max.y
+        } else if self.y < min.y {
+            min.y
+        } else {
+            self.y
+        };
+        let z = if self.z > max.z {
+            max.z
+        } else if self.z < min.z {
+            min.z
+        } else {
+            self.z
+        };
+
+        Vec3::new(x, y, z)
+    }
 }
 
 impl ops::Add<Vec3> for Vec3 {

@@ -1,9 +1,9 @@
+#![allow(dead_code)]
 use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
 
 extern crate png;
-use png::HasParameters;
 
 extern crate rand;
 
@@ -42,9 +42,9 @@ use obj::Obj;
 extern crate clap;
 use clap::{Arg, App};
 
-fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<Hitable + Sync>> {
+fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<dyn Hitable + Sync>> {
     assert!(vertices.len() >= 3, "Input face must have at least 3 vertices!");
-    let mut output: Vec<Box<Hitable + Sync>> = Vec::new();
+    let mut output: Vec<Box<dyn Hitable + Sync>> = Vec::new();
 
     //Trivial case: exactly 3 vertices are passed in
     if vertices.len() == 3 {
@@ -75,7 +75,7 @@ fn triangulate(vertices: Vec<Vec3>) -> Vec<Box<Hitable + Sync>> {
     output
 }
 
-fn color(r : &Ray, world: &Box<Hitable + Sync>, depth: u32) -> Vec3 {
+fn color(r : &Ray, world: &Box<dyn Hitable + Sync>, depth: u32) -> Vec3 {
     let hit_rec = world.hit(0.001, 50.0, r);
     if hit_rec.hit {
         let material = hit_rec.material.unwrap();
@@ -131,8 +131,10 @@ fn main() {
     let image_width = image_width.parse::<u32>().unwrap();
     let image_height = image_height.parse::<u32>().unwrap();
 
+    println!("Generating a {}x{}@{}spp render of {}, saving to {}", image_width, image_height, samples_per_pixel, filename, output_filename);
+
     //Generate world
-    let mut world: Vec<Box<Hitable + Sync>> = Vec::new();
+    let mut world: Vec<Box<dyn Hitable + Sync>> = Vec::new();
 
     let obj_file = Obj::<obj::SimplePolygon>::load(Path::new(filename)).unwrap();
     for object in obj_file.objects.iter() {
@@ -149,7 +151,7 @@ fn main() {
         }
     }
 
-    let bvh_tree: Box<Hitable + Sync> = Box::new(BvhNode::new(world));
+    let bvh_tree: Box<dyn Hitable + Sync> = Box::new(BvhNode::new(world));
     //Setup camera
     let lookfrom = 3.0 * Vec3::new(-2.26788425, 0.320256859, 1.83503199);
     let lookat = Vec3::new(-1.33643341, 0.320256859, 1.47116470);
@@ -213,7 +215,8 @@ fn main() {
     let ref mut w = BufWriter::new(file);
 
     let mut encoder = png::Encoder::new(w, image_width, image_height);
-    encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+    encoder.set_color(png::ColorType::RGBA);
+    encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header().unwrap();
 
 

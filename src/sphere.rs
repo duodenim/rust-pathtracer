@@ -8,11 +8,11 @@ use hitable::Hitable;
 pub struct Sphere {
     center: Vec3,
     radius: f32,
-    material: Box<Material + Sync>
+    material: Box<dyn Material + Sync>
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32, material: Box<Material + Sync>) -> Sphere {
+    pub fn new(center: Vec3, radius: f32, material: Box<dyn Material + Sync>) -> Sphere {
         Sphere {
             center,
             radius,

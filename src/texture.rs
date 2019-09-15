@@ -9,8 +9,8 @@ pub struct ConstantTexture {
 }
 
 pub struct CheckerTexture {
-    odd: Box<Texture + Sync>,
-    even: Box<Texture + Sync>
+    odd: Box<dyn Texture + Sync>,
+    even: Box<dyn Texture + Sync>
 }
 
 
@@ -29,7 +29,7 @@ impl Texture for ConstantTexture {
 }
 
 impl CheckerTexture {
-    pub fn new(odd: Box<Texture + Sync>, even: Box<Texture + Sync>) -> CheckerTexture {
+    pub fn new(odd: Box<dyn Texture + Sync>, even: Box<dyn Texture + Sync>) -> CheckerTexture {
         CheckerTexture {
             odd,
             even

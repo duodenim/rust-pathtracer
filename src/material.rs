@@ -15,11 +15,11 @@ pub trait Material {
 }
 
 pub struct Lambertian {
-    albedo: Box<Texture + Sync>
+    albedo: Box<dyn Texture + Sync>
 }
 
 pub struct Metal {
-    albedo: Box<Texture + Sync>,
+    albedo: Box<dyn Texture + Sync>,
     fuzz: f32
 }
 
@@ -28,11 +28,11 @@ pub struct Dielectric {
 }
 
 pub struct Isotropic {
-    albedo: Box<Texture + Sync>
+    albedo: Box<dyn Texture + Sync>
 }
 
 impl Lambertian {
-    pub fn new(albedo: Box<Texture + Sync>) -> Lambertian {
+    pub fn new(albedo: Box<dyn Texture + Sync>) -> Lambertian {
         Lambertian {
             albedo
         }
@@ -40,7 +40,7 @@ impl Lambertian {
 }
 
 impl Metal {
-    pub fn new(albedo: Box<Texture + Sync>, fuzz: f32) -> Metal {
+    pub fn new(albedo: Box<dyn Texture + Sync>, fuzz: f32) -> Metal {
         Metal {
             albedo,
             fuzz
@@ -57,7 +57,7 @@ impl Dielectric {
 }
 
 impl Isotropic {
-    pub fn new(albedo: Box<Texture + Sync>) -> Isotropic {
+    pub fn new(albedo: Box<dyn Texture + Sync>) -> Isotropic {
         Isotropic {
             albedo
         }

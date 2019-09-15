@@ -14,7 +14,7 @@ pub struct Hit<'a> {
     pub t: f32,
     pub p: Vec3,
     pub normal: Vec3,
-    pub material: Option<&'a Box<Material + Sync>>
+    pub material: Option<&'a Box<dyn Material + Sync>>
 }
 
 impl<'a> Hit<'a> {
@@ -35,19 +35,19 @@ pub trait Hitable {
 }
 
 pub struct ConstantMedium {
-    boundary: Box<Hitable + Sync>,
+    boundary: Box<dyn Hitable + Sync>,
     density: f32,
-    material: Box<Material + Sync>
+    material: Box<dyn Material + Sync>
 }
 
 pub struct BvhNode {
-    left: Box<Hitable + Sync>,
-    right: Option<Box<Hitable + Sync>>,
+    left: Box<dyn Hitable + Sync>,
+    right: Option<Box<dyn Hitable + Sync>>,
     bbox: AABB
 }
 
 impl ConstantMedium {
-    pub fn new(boundary: Box<Hitable + Sync>, density: f32, texture: Box<Texture + Sync>) -> ConstantMedium {
+    pub fn new(boundary: Box<dyn Hitable + Sync>, density: f32, texture: Box<dyn Texture + Sync>) -> ConstantMedium {
         ConstantMedium {
             boundary,
             density,
@@ -133,7 +133,7 @@ impl Hitable for BvhNode {
 }
 
 impl BvhNode {
-    pub fn new(mut list: Vec<Box<Hitable + Sync>>) -> BvhNode {
+    pub fn new(mut list: Vec<Box<dyn Hitable + Sync>>) -> BvhNode {
         let axis = (3.0 * rand::random::<f32>()) as u32;
 
         //Sorting goes here

@@ -10,11 +10,11 @@ pub struct Triangle {
     p2: Vec3,
     p3: Vec3,
     normal: Vec3,
-    material: Box<Material + Sync>
+    material: Box<dyn Material + Sync>
 }
 
 impl Triangle {
-    pub fn new(p1: Vec3, p2: Vec3, p3: Vec3, normal: Vec3, material: Box<Material + Sync>) -> Triangle {
+    pub fn new(p1: Vec3, p2: Vec3, p3: Vec3, normal: Vec3, material: Box<dyn Material + Sync>) -> Triangle {
         Triangle {
             p1,
             p2,

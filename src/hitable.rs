@@ -1,4 +1,4 @@
-use aabb::AABB;
+use aabb::{AABB, BoxAxis};
 use aabb::surrounding_bbox;
 use texture::Texture;
 use vec3::Vec3;
@@ -126,42 +126,84 @@ impl Hitable for BvhNode {
 
 impl BvhNode {
     pub fn new(mut list: Vec<Box<dyn Hitable + Sync>>) -> BvhNode {
-        let axis = (3.0 * rand::random::<f32>()) as u32;
+        let n = list.len();
+        if n == 0 {
+            println!("asdf");
+        }
+        let mut boxes = Vec::new();
+        let mut left_area = vec![0.0; n];
+        let mut right_area = vec![0.0; n];
+        
+        let main_bbox = list.iter().fold(list[0].bounding_box(), | acc, l | {
+            surrounding_bbox(acc, l.bounding_box())
+        });
 
-        //Sorting goes here
-        if axis == 0 {
-            list.sort_by(|a, b| {
-                let left_bbox = a.bounding_box();
-                let right_bbox = b.bounding_box();
+        let axis = main_bbox.longest_axis();
+        match axis {
+            BoxAxis::X => {
+                list.sort_by(|a, b| {
+                    let left_bbox = a.bounding_box();
+                    let right_bbox = b.bounding_box();
 
-                if left_bbox.min().x() < right_bbox.min().x() {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            });
-        } else if axis == 1 {
-            list.sort_by(|a, b| {
-                let left_bbox = a.bounding_box();
-                let right_bbox = b.bounding_box();
+                    if left_bbox.min().x() < right_bbox.min().x() {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                });
+            },
+            BoxAxis::Y => {
+                list.sort_by(|a, b| {
+                    let left_bbox = a.bounding_box();
+                    let right_bbox = b.bounding_box();
 
-                if left_bbox.min().y() < right_bbox.min().y() {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            });
-        } else {
-            list.sort_by(|a, b| {
-                let left_bbox = a.bounding_box();
-                let right_bbox = b.bounding_box();
+                    if left_bbox.min().y() < right_bbox.min().y() {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                });
+            },
+            BoxAxis::Z => {
+                list.sort_by(|a, b| {
+                    let left_bbox = a.bounding_box();
+                    let right_bbox = b.bounding_box();
 
-                if left_bbox.min().z() < right_bbox.min().z() {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            });
+                    if left_bbox.min().z() < right_bbox.min().z() {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                });
+            }
+        }
+
+        for l in list.iter() {
+            boxes.push(l.bounding_box());
+        }
+
+        left_area[0] = boxes[0].surface_area();
+        let mut left_bbox = boxes[0];
+        for i in 1..(n - 1) {
+            left_bbox = surrounding_bbox(left_bbox, boxes[i]);
+            left_area[i] = left_bbox.surface_area();
+        }
+
+        right_area[n - 1] = boxes[n - 1].surface_area();
+        let mut right_bbox = boxes[n - 1];
+        for i in (1..(n-1)).rev() {
+            right_bbox = surrounding_bbox(right_bbox, boxes[i]);
+            right_area[i] = right_bbox.surface_area();
+        }
+
+        let mut min_sah = std::f32::MAX;
+        let mut min_sah_idx = 0;
+        for i in 0..(n-1) {
+            let sah = i as f32 * left_area[i] + (n - i - 1) as f32 * right_area[i + 1];
+            if sah < min_sah {
+                min_sah_idx = i;
+                min_sah = sah;
+            }
         }
 
         if list.len() == 1 {
@@ -183,8 +225,7 @@ impl BvhNode {
                 bbox: surrounding_bbox(left_bbox, right_bbox)
             }
         } else {
-            let length = list.len();
-            let right = list.split_off(length / 2);
+            let right = list.split_off(min_sah_idx + 1);
             let left = Box::new(BvhNode::new(list));
             let right = Box::new(BvhNode::new(right));
             let left_bbox = left.bounding_box();

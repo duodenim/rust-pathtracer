@@ -139,6 +139,7 @@ fn main() {
     println!("Generating a {}x{}@{}spp render of {}, saving to {}", image_width, image_height, samples_per_pixel, filename, output_filename);
 
     //Generate world
+    let start_time = std::time::Instant::now();
     let mut world: Vec<Box<dyn Hitable + Sync>> = Vec::new();
 
     let obj_file = Obj::<obj::SimplePolygon>::load(Path::new(filename)).unwrap();
@@ -157,10 +158,28 @@ fn main() {
     }
 
     world.push(Box::new(Sphere::new(Vec3::new(0.0, 0.0, 2.0), 0.5, Box::new(DiffuseLight::new(Box::new(ConstantTexture::new(Vec3::new(2.0, 2.0, 2.0))))))));
+    let end_time = std::time::Instant::now();
+
+    let duration = end_time.duration_since(start_time);
+    let time_sec = duration.as_secs();
+    let time_ms = duration.subsec_millis();
+
+    println!("Scene loading took {}.{} seconds", time_sec, time_ms);
+
+    let start_time = std::time::Instant::now();
 
     let bvh_tree: Box<dyn Hitable + Sync> = Box::new(BvhNode::new(world));
+
+    let end_time = std::time::Instant::now();
+
+    let duration = end_time.duration_since(start_time);
+    let time_sec = duration.as_secs();
+    let time_ms = duration.subsec_millis();
+
+    println!("BVH generation took {}.{} seconds", time_sec, time_ms);
+
     //Setup camera
-    let lookfrom = 3.0 * Vec3::new(-2.26788425, 0.320256859, 1.83503199);
+    let lookfrom = 6.0 * Vec3::new(-2.26788425, 0.320256859, 1.83503199);
     let lookat = Vec3::new(-1.33643341, 0.320256859, 1.47116470);
     let focus_dist = (lookfrom - lookat).length();
     let aperture = 0.0;

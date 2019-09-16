@@ -22,3 +22,7 @@ Cargo.lock
 # Ignore any output files
 *.png
 *.ppm
+
+# Ignore IDE folders
+.vscode/
+.idea/

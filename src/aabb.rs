@@ -8,6 +8,12 @@ pub struct AABB {
     max: Vec3
 }
 
+pub enum BoxAxis {
+    X,
+    Y,
+    Z
+}
+
 fn check_one_direction(ray_direction: f32, ray_origin: f32, min_axis: f32, max_axis: f32, tmin: f32, tmax: f32) -> bool {
     let inv_d = 1.0 / ray_direction;
     let mut t0 = (min_axis - ray_origin) * inv_d;
@@ -64,5 +70,28 @@ impl AABB {
             return false;
         }
         true
+    }
+    pub fn longest_axis(&self) -> BoxAxis {
+        let x = self.max.x() - self.min.x();
+        let y = self.max.y() - self.min.y();
+        let z = self.max.z() - self.min.z();
+        if (x >= y) && (x >= z) {
+            return BoxAxis::X;
+        } else if (y >= x) && (y >= z) {
+            return BoxAxis::Y;
+        }
+        BoxAxis::Z
+    }
+
+    pub fn surface_area(&self) -> f32 {
+        let x = self.max.x() - self.min.x();
+        let y = self.max.y() - self.min.y();
+        let z = self.max.z() - self.min.z();
+
+        let xy = 2.0 * x * y;
+        let xz = 2.0 * x * z;
+        let yz = 2.0 * y * z;
+
+        xy + xz + yz
     }
 }

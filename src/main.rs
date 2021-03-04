@@ -61,8 +61,8 @@ fn color(r : &Ray, world: &[Sphere], depth: u32) -> Vec3 {
 }
 
 fn main() {
-    let image_width = 480;
-    let image_height = 270;
+    let image_width = 960;
+    let image_height = 540;
     let samples_per_pixel = 100;
 
     let args: Vec<String> = env::args().collect();
@@ -83,8 +83,7 @@ fn main() {
     let const_green = ConstantTexture::new(Vec3::new(0.2, 0.3, 0.1));
     let const_white = ConstantTexture::new(Vec3::new(0.9, 0.9, 0.9));
     let checkerboard = CheckerTexture::new(Box::new(const_green), Box::new(const_white));
-    world.push(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Metal::new(Box::new(checkerboard), 0.0))));
-
+    world.push(Sphere::new(Vec3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Lambertian::new(Box::new(ConstantTexture::new(Vec3::new(0.5, 0.5, 0.5)))))));
     for a in -11..11 {
         for b in -11..11 {
             let choose_mat = rand::random::<f32>();
